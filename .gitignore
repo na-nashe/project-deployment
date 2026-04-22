@@ -4,8 +4,7 @@
 !.env.example
 
 # Secrets and Keys
-certs/
-*.pem
+certs/private.pem
 *.key
 
 # Docker
@@ -22,5 +21,3 @@ Thumbs.db
 
 # Volumes / data
 postgres_data/
-
-.gitmodules
