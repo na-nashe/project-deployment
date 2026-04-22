@@ -4,8 +4,7 @@
 !.env.example
 
 # Secrets and Keys
-certs/
-*.pem
+certs/private.pem
 *.key
 
 # Docker
