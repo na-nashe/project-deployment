@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   # --- DATABASE ---
   db:
@@ -9,7 +11,7 @@ services:
       POSTGRES_USER: backend
       POSTGRES_PASSWORD: backend
     ports:
-     - "5432:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -37,6 +39,7 @@ services:
   # --- INFRASTRUCTURE: KAFKA & ZOOKEEPER ---
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -79,33 +82,32 @@ services:
       "
 
   # --- PROJECT SERVICES ---
-  
-  
-  #  java-service:
-#    container_name: java_app_container
-#    build:
-#      context: "D:/na_nashe project/spring-back-end"
-#    ports:
-#      - "8080:8080"
-#    restart: unless-stopped
-#    environment:
-#      - SPRING_PROFILES_ACTIVE=local
-#      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/backend
-#      - SPRING_DATASOURCE_USERNAME=backend
-#      - SPRING_DATASOURCE_PASSWORD=backend
-#      - JWT_PRIVATE_KEY_PATH=/app/certs/private.pem
-#      - JWT_PUBLIC_KEY_PATH=/app/certs/public.pem
-#      - AI_SERVICE_URL=http://python_app_container:8000
-#      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
-#    volumes:
-#      - ./certs:/app/certs
-#    depends_on:
-#      db:
-#        condition: service_healthy
-#      kafka:
-#        condition: service_started
-#    networks:
-#      - backend-network
+
+  # java-service:
+  #   container_name: java_app_container
+  #   build:
+  #     context: "D:/na_nashe project/spring-back-end"
+  #   ports:
+  #     - "8080:8080"
+  #   restart: unless-stopped
+  #   environment:
+  #     - SPRING_PROFILES_ACTIVE=local
+  #     - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/backend
+  #     - SPRING_DATASOURCE_USERNAME=backend
+  #     - SPRING_DATASOURCE_PASSWORD=backend
+  #     - JWT_PRIVATE_KEY_PATH=/app/certs/private.pem
+  #     - JWT_PUBLIC_KEY_PATH=/app/certs/public.pem
+  #     - AI_SERVICE_URL=http://python_app_container:8000
+  #     - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+  #   volumes:
+  #     - ./certs:/app/certs
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     kafka:
+  #       condition: service_started
+  #   networks:
+  #     - backend-network
 
   python-service:
     container_name: python_app_container
