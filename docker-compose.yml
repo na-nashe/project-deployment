@@ -37,8 +37,7 @@ services:
 
   # --- INFRASTRUCTURE: KAFKA & ZOOKEEPER ---
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.4.0
-    container_name: zookeeper
+    image: confluentinc/cp-zookeeper:latest
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -48,8 +47,7 @@ services:
       - backend-network
 
   kafka:
-    image: confluentinc/cp-kafka:7.4.0
-    container_name: kafka
+    image: confluentinc/cp-kafka:latest
     depends_on:
       - zookeeper
     ports:
@@ -67,51 +65,48 @@ services:
       - backend-network
 
   kafka-init-topics:
-    image: confluentinc/cp-kafka:7.4.0
+    image: confluentinc/cp-kafka:latest
     depends_on:
       - kafka
     networks:
       - backend-network
     command: >
       bash -c "
-        echo 'Waiting for Kafka...' &&
-        sleep 15 &&
+        echo 'Waiting for Kafka to be ready...' &&
+        cub kafka-ready -b kafka:29092 1 30 &&
         kafka-topics --create --topic alternatives --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:29092 &&
-        echo 'Topic alternatives created!'
+        echo 'Topic alternatives created successfully!'
       "
 
   # --- PROJECT SERVICES ---
-
-  # java-service:
-  #   container_name: java_app_container
-  #   build:
-  #     context: "D:/na_nashe project/spring-back-end"
-  #   ports:
-  #     - "8080:8080"
-  #   restart: unless-stopped
-  #   environment:
-  #     - SPRING_PROFILES_ACTIVE=local
-  #     - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/backend
-  #     - SPRING_DATASOURCE_USERNAME=backend
-  #     - SPRING_DATASOURCE_PASSWORD=backend
-  #     - JWT_PRIVATE_KEY_PATH=/app/certs/private.pem
-  #     - JWT_PUBLIC_KEY_PATH=/app/certs/public.pem
-  #     - AI_SERVICE_URL=http://python_app_container:8000
-  #     - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
-  #   volumes:
-  #     - ./certs:/app/certs
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #     kafka:
-  #       condition: service_started
-  #   networks:
-  #     - backend-network
+  java-service:
+    container_name: java_app_container
+    build: https://github.com/na-nashe/spring-back-end.git
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    environment:
+      - SPRING_PROFILES_ACTIVE=local
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/backend
+      - SPRING_DATASOURCE_USERNAME=backend
+      - SPRING_DATASOURCE_PASSWORD=backend
+      - JWT_PRIVATE_KEY_PATH=/app/certs/private.pem
+      - JWT_PUBLIC_KEY_PATH=/app/certs/public.pem
+      - AI_SERVICE_URL=http://python-service:8000
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+    volumes:
+      - ./certs:/app/certs
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    networks:
+      - backend-network
 
   python-service:
     container_name: python_app_container
-    build:
-      context: "D:/na_nashe project/nanashe-ai-worker/nanashe-ai-worker"
+    build: https://github.com/na-nashe/nanashe-ai-worker.git
     ports:
       - "8000:8000"
     restart: unless-stopped
