@@ -1,4 +1,6 @@
+
 services:
+
   db:
     image: postgres:17-alpine
     container_name: postgres_db
@@ -33,36 +35,93 @@ services:
     networks:
       - backend-network
 
-  java-service:
-    container_name: java_app_container
-    build: https://github.com/na-nashe/spring-back-end.git
-    ports:
-      - "8080:8080"
-    restart: unless-stopped
+  # --- INFRASTRUCTURE: KAFKA & ZOOKEEPER ---
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zookeeper
     environment:
-      - SPRING_PROFILES_ACTIVE=local
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/backend
-      - SPRING_DATASOURCE_USERNAME=backend
-      - SPRING_DATASOURCE_PASSWORD=backend
-      - JWT_PRIVATE_KEY_PATH=/app/certs/private.pem
-      - JWT_PUBLIC_KEY_PATH=/app/certs/public.pem
-      - AI_SERVICE_URL=http://python-service:8000
-    volumes:
-      - ./certs:/app/certs
-    depends_on:
-      db:
-        condition: service_healthy
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
     networks:
       - backend-network
 
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - backend-network
+
+  kafka-init-topics:
+    image: confluentinc/cp-kafka:7.4.0
+    depends_on:
+      - kafka
+    networks:
+      - backend-network
+    command: >
+      bash -c "
+        echo 'Waiting for Kafka...' &&
+        sleep 15 &&
+        kafka-topics --create --topic alternatives --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:29092 &&
+        echo 'Topic alternatives created!'
+      "
+
+  # --- PROJECT SERVICES ---
+
+  # java-service:
+  #   container_name: java_app_container
+  #   build:
+  #     context: "D:/na_nashe project/spring-back-end"
+  #   ports:
+  #     - "8080:8080"
+  #   restart: unless-stopped
+  #   environment:
+  #     - SPRING_PROFILES_ACTIVE=local
+  #     - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/backend
+  #     - SPRING_DATASOURCE_USERNAME=backend
+  #     - SPRING_DATASOURCE_PASSWORD=backend
+  #     - JWT_PRIVATE_KEY_PATH=/app/certs/private.pem
+  #     - JWT_PUBLIC_KEY_PATH=/app/certs/public.pem
+  #     - AI_SERVICE_URL=http://python_app_container:8000
+  #     - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+  #   volumes:
+  #     - ./certs:/app/certs
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     kafka:
+  #       condition: service_started
+  #   networks:
+  #     - backend-network
+
   python-service:
     container_name: python_app_container
-    build: https://github.com/na-nashe/nanashe-ai-worker.git
+    build:
+      context: "D:/na_nashe project/nanashe-ai-worker/nanashe-ai-worker"
     ports:
       - "8000:8000"
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+    depends_on:
+      kafka:
+        condition: service_started
     networks:
       - backend-network
 
@@ -81,6 +140,7 @@ services:
 
 volumes:
   postgres_data:
+  kafka_data:
 
 networks:
   backend-network:
