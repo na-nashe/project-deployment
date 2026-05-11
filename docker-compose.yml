@@ -38,7 +38,6 @@ services:
   # --- INFRASTRUCTURE: KAFKA & ZOOKEEPER ---
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
-    container_name: zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -49,7 +48,6 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:latest
-    container_name: kafka
     depends_on:
       - zookeeper
     ports:
@@ -77,14 +75,13 @@ services:
         echo 'Waiting for Kafka to be ready...' &&
         cub kafka-ready -b kafka:29092 1 30 &&
         kafka-topics --create --topic alternatives --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:29092 &&
-        echo 'Topic alternatives created!'
+        echo 'Topic alternatives created successfully!'
       "
 
   # --- PROJECT SERVICES ---
   java-service:
     container_name: java_app_container
-    build:
-      context: https://github.com/na-nashe/spring-back-end.git#main
+    build: https://github.com/na-nashe/spring-back-end.git
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -97,6 +94,8 @@ services:
       - JWT_PUBLIC_KEY_PATH=/app/certs/public.pem
       - AI_SERVICE_URL=http://python-service:8000
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+    volumes:
+      - ./certs:/app/certs
     depends_on:
       db:
         condition: service_healthy
@@ -107,9 +106,7 @@ services:
 
   python-service:
     container_name: python_app_container
-    build:
-      context: https://github.com/na-nashe/nanashe-ai-worker.git#main
-      dockerfile: Dockerfile
+    build: https://github.com/na-nashe/nanashe-ai-worker.git
     ports:
       - "8000:8000"
     restart: unless-stopped
