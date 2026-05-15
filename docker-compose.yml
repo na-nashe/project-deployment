@@ -1,6 +1,4 @@
-
 services:
-
   db:
     image: postgres:17-alpine
     container_name: postgres_db
@@ -35,30 +33,33 @@ services:
     networks:
       - backend-network
 
-  # --- INFRASTRUCTURE: KAFKA & ZOOKEEPER ---
-  zookeeper:
-    image: confluentinc/cp-zookeeper:latest
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    ports:
-      - "2181:2181"
-    networks:
-      - backend-network
-
+  # --- INFRASTRUCTURE: KAFKA (KRaft mode, no Zookeeper) ---
   kafka:
     image: confluentinc/cp-kafka:latest
-    depends_on:
-      - zookeeper
+    restart: unless-stopped
     ports:
       - "9092:9092"
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://0.0.0.0:9092,CONTROLLER://kafka:9093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qg==
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "kafka-broker-api-versions --bootstrap-server localhost:9092 2>/dev/null || exit 1",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 40s
     volumes:
       - kafka_data:/var/lib/kafka/data
     networks:
@@ -67,13 +68,12 @@ services:
   kafka-init-topics:
     image: confluentinc/cp-kafka:latest
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
     networks:
       - backend-network
     command: >
       bash -c "
-        echo 'Waiting for Kafka to be ready...' &&
-        cub kafka-ready -b kafka:29092 1 30 &&
         kafka-topics --create --topic alternatives --partitions 1 --replication-factor 1 --if-not-exists --bootstrap-server kafka:29092 &&
         echo 'Topic alternatives created successfully!'
       "
@@ -81,7 +81,8 @@ services:
   # --- PROJECT SERVICES ---
   java-service:
     container_name: java_app_container
-    build: https://github.com/na-nashe/spring-back-end.git
+    build:
+      context: https://github.com/na-nashe/spring-back-end.git
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -100,7 +101,7 @@ services:
       db:
         condition: service_healthy
       kafka:
-        condition: service_started
+        condition: service_healthy
     networks:
       - backend-network
 
@@ -116,13 +117,13 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
     depends_on:
       kafka:
-        condition: service_started
+        condition: service_healthy
     networks:
       - backend-network
 
   svelte-app:
     container_name: svelte_app_container
-    build: git@github.com:na-nashe/svelte-front-end.git
+    build: https://github.com/na-nashe/svelte-front-end.git
     ports:
       - "3000:3000"
     restart: unless-stopped
