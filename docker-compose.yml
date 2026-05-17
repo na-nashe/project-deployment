@@ -28,6 +28,7 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "False"
     depends_on:
       - db
     networks:
@@ -78,11 +79,26 @@ services:
         echo 'Topic alternatives created successfully!'
       "
 
+  kafka-ui:
+    container_name: kafka-ui
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8090:8080"
+    restart: unless-stopped
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local-cluster
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:29092
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - backend-network
+
   # --- PROJECT SERVICES ---
   java-service:
     container_name: java_app_container
     build:
-      context: https://github.com/na-nashe/spring-back-end.git
+      context: https://github.com/na-nashe/spring-back-end.git#fix/kafka-integration
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -94,7 +110,7 @@ services:
       - JWT_PRIVATE_KEY_PATH=/app/certs/private.pem
       - JWT_PUBLIC_KEY_PATH=/app/certs/public.pem
       - AI_SERVICE_URL=http://python-service:8000
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
     volumes:
       - ./certs:/app/certs
     depends_on:
@@ -102,6 +118,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      kafka-init-topics:
+        condition: service_completed_successfully
     networks:
       - backend-network
 
@@ -114,10 +132,12 @@ services:
     env_file:
       - .env
     environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
     depends_on:
       kafka:
         condition: service_healthy
+      kafka-init-topics:
+        condition: service_completed_successfully
     networks:
       - backend-network
 

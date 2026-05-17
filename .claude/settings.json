@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose *)",
+      "Bash(docker info *)",
+      "Bash(docker context *)",
+      "Read(//tmp/**)",
+      "Read(//var/lib/docker/**)",
+      "Bash(docker exec *)",
+      "Bash(git clone *)",
+      "Bash(xargs ls -la)",
+      "Read(//home/extziz/**)"
+    ],
+    "additionalDirectories": [
+      "/tmp/spring-back-end/src/main/java/com/nanashe/backend/config",
+      "/home/extziz/Documents/spring-back-end/src/main/java/com/nanashe/backend/dto/alternatives/response"
+    ]
+  }
+}
