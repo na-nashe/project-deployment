@@ -98,7 +98,7 @@ services:
   java-service:
     container_name: java_app_container
     build:
-      context: https://github.com/na-nashe/spring-back-end.git#fix/kafka-integration
+      context: https://github.com/na-nashe/spring-back-end.git
     ports:
       - "8080:8080"
     restart: unless-stopped
