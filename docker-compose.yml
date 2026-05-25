@@ -103,14 +103,16 @@ services:
       - "8080:8080"
     restart: unless-stopped
     environment:
-      - SPRING_PROFILES_ACTIVE=local
       - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/backend
       - SPRING_DATASOURCE_USERNAME=backend
       - SPRING_DATASOURCE_PASSWORD=backend
+      - SPRING_EMAIL_USERNAME=na.nashe.org@gmail.com
+      - SPRING_EMAIL_PASSWORD=lvey auxp ytxk wchk
       - JWT_PRIVATE_KEY_PATH=/app/certs/private.pem
       - JWT_PUBLIC_KEY_PATH=/app/certs/public.pem
       - AI_SERVICE_URL=http://python-service:8000
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - APP_BASE_URL=http://localhost:8080 # TODO: change to aws EC2 instance url
     volumes:
       - ./certs:/app/certs
     depends_on:
@@ -149,6 +151,7 @@ services:
     restart: unless-stopped
     environment:
       - BACKEND_URL=http://java-service:8080
+      - ORIGIN=http://localhost:3000 # TODO: change to aws EC2 instance url
     depends_on:
       - java-service
     networks:
